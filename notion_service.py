@@ -1,4 +1,5 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from notion_client import Client
@@ -7,6 +8,8 @@ from typing import Any
 
 MAX_NOTION_RICH_TEXT = 2000
 MAX_APPEND_CHILDREN = 100
+APPEND_DELAY_SECONDS = 0.35
+MAX_APPEND_RETRIES = 3
 REFLECTION_PROMPTS = [
     "Why did I read this book?",
     "What is it about?",
@@ -112,23 +115,31 @@ def batch_append_children(children: list[dict[str, Any]]) -> list[list[dict[str,
     # this is a similar concept to the _split_quote() function except now we are splitting it into 100 payloads (a fancy term for request body) at a time for processing.
     return [children[i : i + MAX_APPEND_CHILDREN] for i in range(0, len(children), MAX_APPEND_CHILDREN)]
 
-# ok so the flow is:
-# 1. we create the chapter the toggle block first, the get the ID of that block from notion
-# 2. we THEN create a bunch of quotes blocks (the list) - which will later be stuffed under that toggle block in step 1.
-# 3. we pass the quote blocks in batch_append_children, however we must do it in batches of 100 otherwise it will overwhelm the api and cause error.
-# Visualisation:
-    # quotes (we have 205 quotes in here)
-    # -> build_quote_bullet_blocks(quotes)
-    # -> [bullet1, bullet2, bullet3, ... bullet205]
-    # -> batch_append_children(...)
-    # -> [
-    #      [bullet1 ... bullet100], # this is batch 1, 100 quotes
-    #      [bullet101 ... bullet200], # this is batch 2
-    #      [bullet201 ... bullet205] # batch 3
-    #    ]
-    # -> append batch 1 under chapter toggle
-    # -> append batch 2 under chapter toggle
-    # -> append batch 3 under chapter toggle
+def append_block_children(client: Client, parent_id: str, children: list[dict[str, Any]]) -> dict[str, str | bool]:
+    """Append one child batch to Notion with pacing and capped retries.
+
+    Args:
+        client: Ready Notion client.
+        parent_id: Page or block ID receiving these children.
+        children: One append-sized batch of block payloads.
+
+    Returns:
+        A result dict with `ok` plus an error message when the append fails.
+    """
+    time.sleep(APPEND_DELAY_SECONDS)
+    for attempt in range(MAX_APPEND_RETRIES + 1):
+        try:
+            client.blocks.children.append(block_id=parent_id, children=children)
+            return {"ok": True, "error": ""}
+        except APIResponseError as exc:
+            status = getattr(exc, "status", None)
+            retryable = status == 429 or (isinstance(status, int) and status >= 500)
+            if not retryable or attempt == MAX_APPEND_RETRIES:
+                return {"ok": False, "error": f"Failed to append blocks to {parent_id}: {exc}"}
+            time.sleep(APPEND_DELAY_SECONDS * (2 ** (attempt + 1))) # this is an exponential backoff - make it wait longer after each failed retry.
+
+    return {"ok": False, "error": f"Failed to append blocks to {parent_id}. Please try again later."}
+
 
 def create_notes_page(book_title: str) -> dict:
     """Create a Notes page and return its Notion identifiers.
