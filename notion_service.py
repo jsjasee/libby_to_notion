@@ -115,7 +115,11 @@ def batch_append_children(children: list[dict[str, Any]]) -> list[list[dict[str,
     # this is a similar concept to the _split_quote() function except now we are splitting it into 100 payloads (a fancy term for request body) at a time for processing.
     return [children[i : i + MAX_APPEND_CHILDREN] for i in range(0, len(children), MAX_APPEND_CHILDREN)]
 
-def append_block_children(client: Client, parent_id: str, children: list[dict[str, Any]]) -> dict[str, str | bool]:
+def append_block_children(client: Client, parent_id: str, children: list[dict[str, Any]]) -> dict[
+                                                                                                 str, bool | str | Any] | \
+                                                                                             dict[
+                                                                                                 str, bool | str | dict[
+                                                                                                     Any, Any]]:
     """Append one child batch to Notion with pacing and capped retries.
 
     Args:
@@ -129,16 +133,62 @@ def append_block_children(client: Client, parent_id: str, children: list[dict[st
     time.sleep(APPEND_DELAY_SECONDS)
     for attempt in range(MAX_APPEND_RETRIES + 1):
         try:
-            client.blocks.children.append(block_id=parent_id, children=children)
-            return {"ok": True, "error": ""}
+            response = client.blocks.children.append(block_id=parent_id, children=children)
+            return {"ok": True, "error": "", "response": response}
         except APIResponseError as exc:
             status = getattr(exc, "status", None)
             retryable = status == 429 or (isinstance(status, int) and status >= 500)
             if not retryable or attempt == MAX_APPEND_RETRIES:
-                return {"ok": False, "error": f"Failed to append blocks to {parent_id}: {exc}"}
+                return {"ok": False, "error": f"Failed to append blocks to {parent_id}: {exc}", "response": {}}
             time.sleep(APPEND_DELAY_SECONDS * (2 ** (attempt + 1))) # this is an exponential backoff - make it wait longer after each failed retry.
 
-    return {"ok": False, "error": f"Failed to append blocks to {parent_id}. Please try again later."}
+    return {"ok": False, "error": f"Failed to append blocks to {parent_id}. Please try again later.", "response": {}}
+
+
+def _first_block_id(result: dict[str, Any]) -> str:
+    children = result["response"].get("results", [])
+    return children[0].get("id", "").strip() if children else ""
+
+
+def append_template_toggle(client: Client, page_id: str) -> dict[str, Any]:
+    """Append the reflection template toggle to a page."""
+    return append_block_children(client, page_id, [build_reflection_toggle_block()])
+
+
+def append_chapter_toggle(client: Client, page_id: str, chapter: str) -> dict[str, Any]:
+    """Append one chapter toggle and return its created block ID."""
+    result = append_block_children(client, page_id, [build_chapter_toggle_block(chapter)])
+    block_id = _first_block_id(result) if result["ok"] else ""
+    if result["ok"] and not block_id:
+        return {"ok": False, "error": f"Notion did not return a block ID for chapter: {chapter or '(Blank chapter)'}", "block_id": ""}
+    return {"ok": result["ok"], "error": result["error"], "block_id": block_id}
+
+
+def append_quote_bullets(client: Client, toggle_block_id: str, quotes: list[str]) -> dict[str, str | bool]:
+    """Append all quote bullets under one chapter toggle."""
+    for batch in batch_append_children(build_quote_bullet_blocks(quotes)):
+        result = append_block_children(client, toggle_block_id, batch)
+        if not result["ok"]:
+            return {"ok": False, "error": result["error"]}
+    return {"ok": True, "error": ""}
+
+
+def append_page_body(page_id: str, grouped_chapters: dict[str, list[str]]) -> dict[str, str | bool]:
+    """Append the reflection toggle and all chapter quote blocks to a page."""
+    client, _, _, _ = _build_notion_client()
+    result = append_template_toggle(client, page_id)
+    if not result["ok"]:
+        return {"ok": False, "status": "incomplete", "error": result["error"]}
+
+    for chapter, quotes in grouped_chapters.items():
+        chapter_result = append_chapter_toggle(client, page_id, chapter)
+        if not chapter_result["ok"]:
+            return {"ok": False, "status": "incomplete", "error": chapter_result["error"]}
+        quote_result = append_quote_bullets(client, chapter_result["block_id"], quotes)
+        if not quote_result["ok"]:
+            return {"ok": False, "status": "incomplete", "error": quote_result["error"]}
+
+    return {"ok": True, "status": "complete", "error": ""}
 
 
 def create_notes_page(book_title: str) -> dict:
