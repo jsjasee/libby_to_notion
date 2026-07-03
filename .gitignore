@@ -1,73 +1,15 @@
-# Python cache files
 __pycache__/
 *.py[cod]
-*$py.class
 
-# Virtual environments
 venv/
 .venv/
-env/
-ENV/
 
-# Environment variables / secrets
 .env
 .env.*
 !.env.example
 
-# IDE / editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# Testing / coverage
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
-
-# Type checking / linting caches
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.ruff_cache/
-
-# Build / packaging files
-build/
-dist/
-*.egg-info/
-.eggs/
-*.egg
-
-# Logs
-*.log
-logs/
-
-# OS files
 .DS_Store
-Thumbs.db
+.idea/
 
-# Local databases
-*.sqlite
-*.sqlite3
-*.db
-
-# Uploaded / generated files
 uploads/
-outputs/
-exports/
-tmp/
-temp/
-
-# Python dotenv / local config
-config.local.*
-settings.local.*
-
-# Other files
-PRD.md
+*.csv

@@ -1,13 +1,18 @@
 import gradio as gr
+import csv_parser
+import notion_service
 
 
 def preview_import(_: str | None, __: str) -> str:
+    result = csv_parser.parse_libby_csv("libbyjourney-10217046-stop-people-pleasing---highlights.csv")
+    # print(result)
     return "Preview is not implemented yet."
 
 
 def run_import(_: str | None, __: str) -> str:
+    result = notion_service.test_notion_connection()
+    # print(result)
     return "Import is not implemented yet."
-
 
 def build_app() -> gr.Blocks:
     """Build the Gradio app shell for the Libby import flow.
