@@ -1,0 +1,3 @@
+import notion_service
+
+notion_service.test_notion_connection()
