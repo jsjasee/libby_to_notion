@@ -7,4 +7,5 @@ dependencies = [
     "notion-client",
     "pandas",
     "python-dotenv",
+    "starlette>=1.3.1",
 ]
