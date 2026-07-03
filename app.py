@@ -38,8 +38,10 @@ def preview_import(csv_path: str | None, _: str) -> str:
     return "\n".join(lines)
 
 
-def run_import(_: str | None, __: str) -> str:
-    result = notion_service.test_notion_connection()
+def run_import(csv_file: str | None, book_title: str) -> str:
+    if not book_title:
+        return "No book title provided."
+    result = notion_service.create_notes_page(book_title)
     # print(result)
     return "Import is not implemented yet."
 
