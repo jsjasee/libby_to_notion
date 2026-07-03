@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import gradio as gr
 import csv_parser
 import notion_service
@@ -39,11 +41,43 @@ def preview_import(csv_path: str | None, _: str) -> str:
 
 
 def run_import(csv_file: str | None, book_title: str) -> str:
-    if not book_title:
-        return "No book title provided."
-    result = notion_service.create_notes_page(book_title)
-    # print(result)
-    return "Import is not implemented yet."
+    """Run the full Libby-to-Notion import and return a user-facing status.
+
+    Args:
+        csv_file: Uploaded CSV file path from Gradio.
+        book_title: Page title to create in Notion.
+
+    Returns:
+        A complete or incomplete import message, or a validation / processing error.
+    """
+    csv_path = Path(csv_file) if csv_file else None
+    try:
+        if not csv_file:
+            return "Please upload a Libby CSV file."
+        if not book_title.strip():
+            return "Please enter a book title."
+
+        parsed_csv = csv_parser.parse_libby_csv(csv_file)
+        page = notion_service.create_notes_page(book_title)
+        body_result = notion_service.append_page_body(
+            page["page_id"],
+            parsed_csv["grouped_chapters"],
+        )
+
+        if body_result["status"] == "incomplete":
+            return (
+                "Status: Incomplete import\n"
+                f"Page URL: {page['page_url']}\n"
+                f"Error: {body_result['error']}"
+            )
+
+        return f"Status: Complete\nPage URL: {page['page_url']}"
+    except (ValueError, RuntimeError) as exc:
+        return str(exc)
+    finally:
+        if csv_path and csv_path.exists():
+            csv_path.unlink() # deletes the file
+
 
 def build_app() -> gr.Blocks:
     """Build the Gradio app shell for the Libby import flow.
