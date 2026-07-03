@@ -68,3 +68,6 @@ temp/
 # Python dotenv / local config
 config.local.*
 settings.local.*
+
+# Other files
+PRD.md

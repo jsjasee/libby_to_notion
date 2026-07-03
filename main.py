@@ -1,3 +1,5 @@
 import notion_service
 
-notion_service.test_notion_connection()
+result = notion_service.test_notion_connection()
+
+print(result)
