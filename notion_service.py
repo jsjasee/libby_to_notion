@@ -117,14 +117,14 @@ def batch_append_children(children: list[dict[str, Any]]) -> list[list[dict[str,
 # 2. we THEN create a bunch of quotes blocks (the list) - which will later be stuffed under that toggle block in step 1.
 # 3. we pass the quote blocks in batch_append_children, however we must do it in batches of 100 otherwise it will overwhelm the api and cause error.
 # Visualisation:
-    # quotes
+    # quotes (we have 205 quotes in here)
     # -> build_quote_bullet_blocks(quotes)
     # -> [bullet1, bullet2, bullet3, ... bullet205]
     # -> batch_append_children(...)
     # -> [
-    #      [bullet1 ... bullet100],
-    #      [bullet101 ... bullet200],
-    #      [bullet201 ... bullet205]
+    #      [bullet1 ... bullet100], # this is batch 1, 100 quotes
+    #      [bullet101 ... bullet200], # this is batch 2
+    #      [bullet201 ... bullet205] # batch 3
     #    ]
     # -> append batch 1 under chapter toggle
     # -> append batch 2 under chapter toggle
