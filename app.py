@@ -5,7 +5,7 @@ import notion_service
 
 def preview_import(_: str | None, __: str) -> str:
     result = csv_parser.parse_libby_csv("libbyjourney-10217046-stop-people-pleasing---highlights.csv")
-    # print(result)
+    print(result)
     return "Preview is not implemented yet."
 
 

@@ -7,13 +7,13 @@ REQUIRED_COLUMNS = {"chapter", "quote"}
 
 
 def parse_libby_csv(csv_path: str) -> dict:
-    """Read a Libby CSV and return the normalized rows needed by the app.
+    """Read a Libby CSV and return grouped chapter data for import.
 
     Args:
         csv_path: Path to a single Libby CSV export file.
 
     Returns:
-        A dict with total row count and cleaned rows containing chapter and quote.
+        A dict with row totals plus grouped quotes keyed by chapter.
 
     Raises:
         ValueError: If the file path is missing or required columns are absent.
@@ -27,19 +27,20 @@ def parse_libby_csv(csv_path: str) -> dict:
         missing_list = ", ".join(sorted(missing_columns))
         raise ValueError(f"CSV is missing required columns: {missing_list}")
 
-    cleaned_rows = []
-    # dataframe.iloc[::-1] -> returns all the rows in reverse order
-    # .itertuples() -> loops the rows as tuple-like objects, index=False means don't include the number (which is the index) in the tuple
+    grouped_chapters = {}
     for row in dataframe.iloc[::-1].itertuples(index=False):
-        # print(row)
         chapter = str(getattr(row, "chapter", "")).strip()
         quote = str(getattr(row, "quote", "")).strip()
         if not quote:
             continue
-        cleaned_rows.append({"chapter": chapter, "quote": quote})
+        grouped_chapters.setdefault(chapter, []).append(quote)
+        # chapter will be the key to that dictionary, if chapter is not a key, then grouped_chapters[chapter] = []
+        # if there's a value for that chapter key, then we will just append that quote to the list
+        # TLDR: The setdefault() method returns the value of the item with the specified key but it will insert the value for that key if key does not exist.
 
     return {
         "total_rows": len(dataframe.index),
-        "total_quotes": len(cleaned_rows),
-        "rows": cleaned_rows,
+        "total_chapters": len(grouped_chapters),
+        "total_quotes": sum(len(quotes) for quotes in grouped_chapters.values()),
+        "grouped_chapters": grouped_chapters,
     }
