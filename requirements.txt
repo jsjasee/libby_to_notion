@@ -1,0 +1,4 @@
+gradio
+notion-client
+pandas
+python-dotenv
