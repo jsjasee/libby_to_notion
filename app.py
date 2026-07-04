@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
 
 import gradio as gr
+from dotenv import load_dotenv
 import csv_parser
 import notion_service
 
+load_dotenv()
 
 def preview_import(csv_path: str | None, _: str) -> str:
     """Build a short import preview from a single Libby CSV file.
@@ -92,6 +95,15 @@ def _enable_import_button() -> gr.Button:
     return gr.Button(interactive=True)
 
 
+def _get_app_auth() -> tuple[str, str]:
+    """Load the Gradio basic-auth credentials from environment variables."""
+    username = os.getenv("APP_USERNAME", "").strip()
+    password = os.getenv("APP_PASSWORD", "").strip()
+    if not username or not password:
+        raise ValueError("Missing APP_USERNAME or APP_PASSWORD.")
+    return username, password
+
+
 def build_app() -> gr.Blocks:
     """Build the Gradio app shell for the Libby import flow.
 
@@ -134,4 +146,4 @@ demo = build_app()
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(auth=_get_app_auth())
