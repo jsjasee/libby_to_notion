@@ -40,22 +40,26 @@ def preview_import(csv_path: str | None, _: str) -> str:
     return "\n".join(lines)
 
 
-def run_import(csv_file: str | None, book_title: str) -> str:
-    """Run the full Libby-to-Notion import and return a user-facing status.
+def _markdown_link(url: str) -> str:
+    return f"[{url}]({url})"
+
+
+def run_import(csv_file: str | None, book_title: str) -> tuple[str, str]:
+    """Run the full Libby-to-Notion import and return status text plus a page link.
 
     Args:
         csv_file: Uploaded CSV file path from Gradio.
         book_title: Page title to create in Notion.
 
     Returns:
-        A complete or incomplete import message, or a validation / processing error.
+        A tuple of status text and optional markdown link output.
     """
     csv_path = Path(csv_file) if csv_file else None
     try:
         if not csv_file:
-            return "Please upload a Libby CSV file."
+            return "Please upload a Libby CSV file.", ""
         if not book_title.strip():
-            return "Please enter a book title."
+            return "Please enter a book title.", ""
 
         parsed_csv = csv_parser.parse_libby_csv(csv_file)
         page = notion_service.create_notes_page(book_title)
@@ -67,13 +71,13 @@ def run_import(csv_file: str | None, book_title: str) -> str:
         if body_result["status"] == "incomplete":
             return (
                 "Status: Incomplete import\n"
-                f"Page URL: {page['page_url']}\n"
-                f"Error: {body_result['error']}"
+                f"Error: {body_result['error']}",
+                _markdown_link(page["page_url"]),
             )
 
-        return f"Status: Complete\nPage URL: {page['page_url']}"
+        return "Status: Complete", _markdown_link(page["page_url"]) # this second output is for the markdown link later on.
     except (ValueError, RuntimeError) as exc:
-        return str(exc)
+        return str(exc), ""
     finally:
         if csv_path and csv_path.exists():
             csv_path.unlink() # deletes the file
@@ -100,6 +104,8 @@ def build_app() -> gr.Blocks:
         book_title = gr.Textbox(label="Book Title")
         preview_output = gr.Textbox(label="Preview", lines=8, interactive=False)
         import_output = gr.Textbox(label="Import Result", lines=4, interactive=False)
+        import_link = gr.Markdown()
+        # We have a textbox (input_output) and markdown component (import_link), so that we can see the textbox loading when it is processing, and click on the link in the markdown later on
 
         gr.Button("Preview").click(
             fn=preview_import,
@@ -112,11 +118,10 @@ def build_app() -> gr.Blocks:
         create_button.click(
             fn=_disable_import_button,
             outputs=create_button, # we take the value returned by the function _disable_import_button and UPDATE create_button's button, instead of creating a new unrelated button
-            # queue=False,
         ).then(
             fn=run_import,
             inputs=[csv_file, book_title],
-            outputs=import_output,
+            outputs=[import_output, import_link],
         ).then(
             fn=_enable_import_button,
             outputs=create_button,
