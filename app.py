@@ -79,6 +79,15 @@ def run_import(csv_file: str | None, book_title: str) -> str:
             csv_path.unlink() # deletes the file
 
 
+def _disable_import_button() -> gr.Button:
+    # we have to disable the button when the user clicks on 'create notion page' to prevent duplicate notion pages from being created.
+    return gr.Button(interactive=False)
+
+
+def _enable_import_button() -> gr.Button:
+    return gr.Button(interactive=True)
+
+
 def build_app() -> gr.Blocks:
     """Build the Gradio app shell for the Libby import flow.
 
@@ -97,10 +106,20 @@ def build_app() -> gr.Blocks:
             inputs=[csv_file, book_title],
             outputs=preview_output,
         )
-        gr.Button("Create Notion Page").click(
+
+        create_button = gr.Button("Create Notion Page")
+        # also note: the .then() here is event chaining in gradio, not exactly like the .then() in javascript promises
+        create_button.click(
+            fn=_disable_import_button,
+            outputs=create_button, # we take the value returned by the function _disable_import_button and UPDATE create_button's button, instead of creating a new unrelated button
+            # queue=False,
+        ).then(
             fn=run_import,
             inputs=[csv_file, book_title],
             outputs=import_output,
+        ).then(
+            fn=_enable_import_button,
+            outputs=create_button,
         )
 
     return demo
