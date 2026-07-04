@@ -8,7 +8,7 @@ import notion_service
 
 load_dotenv()
 
-def preview_import(csv_path: str | None, _: str) -> str:
+def preview_import(csv_path: str, _: str) -> str:
     """Build a short import preview from a single Libby CSV file.
 
     Args:
