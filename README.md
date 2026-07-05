@@ -1,25 +1,21 @@
----
-title: Libby Highlights To Notion
-emoji: 🐢
-colorFrom: red
-colorTo: purple
-sdk: gradio
-sdk_version: 6.19.0
-python_version: '3.13'
-app_file: app.py
-pinned: false
-short_description: A space to convert libby highlights to a notion page!
----
 # Libby to Notion
 
-## Setup
+This project is still in progress and is not ready for review yet.
+
+It is being built as a Gradio app for converting Libby quotes into a Notion page.
+
+## Current status
+
+- Core implementation is underway
+- README and project documentation are intentionally minimal for now
+- A review-ready version will be available soon
+
+## Local setup
 
 ```bash
 uv sync
 cp .env.example .env
 ```
-
-Fill in the values in `.env`.
 
 ## Run
 
