@@ -29,9 +29,11 @@ def preview_import(csv_path: str, _: str) -> str:
         f"Total rows: {result['total_rows']}",
         f"Total chapters: {result['total_chapters']}",
         f"Total quotes: {result['total_quotes']}",
-        "",
-        "Chapter preview:",
     ]
+    if result["has_note_column"]:
+        lines.append(f"Total notes: {result['total_notes']}")
+
+    lines.extend(["", "Chapter preview:"])
 
     if not chapter_preview:
         lines.append("- No quotes found.")
