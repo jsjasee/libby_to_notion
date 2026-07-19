@@ -64,6 +64,19 @@ def _rich_text(content: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": {"content": content}}]
 
 
+def _note_rich_text(content: str, include_label: bool) -> list[dict[str, Any]]:
+    if not include_label:
+        return _rich_text(content)
+    return [
+        {
+            "type": "text",
+            "text": {"content": "Note: "},
+            "annotations": {"bold": True},
+        },
+        {"type": "text", "text": {"content": content}},
+    ]
+
+
 def _split_quote(quote: str) -> list[str]:
     text = quote.strip() # strips the whitespaces
     # the code below splits the quote into chunks of 2000 words in a list
@@ -95,18 +108,35 @@ def build_chapter_toggle_block(chapter: str) -> dict[str, Any]:
     }
 
 
-def build_quote_bullet_blocks(quotes: list[str]) -> list[dict[str, Any]]:
-    """Build bullet blocks for quotes, splitting any quote over 2,000 characters."""
+def _build_note_blocks(note: str) -> list[dict[str, Any]]:
+    note_chunks = _split_quote(note)
+    return [
+        {
+            "object": "block",
+            "type": "bulleted_list_item",
+            "bulleted_list_item": {"rich_text": _note_rich_text(chunk, index == 0)},
+        }
+        for index, chunk in enumerate(note_chunks)
+    ]
+
+
+def build_quote_bullet_blocks(quotes: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Build quote bullets, with optional note bullets nested under the last quote chunk."""
     blocks: list[dict[str, Any]] = []
-    for quote in quotes:
-        for chunk in _split_quote(quote):
-            blocks.append(
-                {
-                    "object": "block",
-                    "type": "bulleted_list_item",
-                    "bulleted_list_item": {"rich_text": _rich_text(chunk)},
-                }
-            )
+    for item in quotes:
+        quote = item["quote"]
+        note = item["note"]
+        chunks = _split_quote(quote)
+        for index, chunk in enumerate(chunks):
+            bullet = {
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {"rich_text": _rich_text(chunk)},
+            }
+            if note and index == len(chunks) - 1:
+                # attach the note to the last quote chunk (if the quotes need to be split into chunks)
+                bullet["bulleted_list_item"]["children"] = _build_note_blocks(note)
+            blocks.append(bullet)
     return blocks
 
 
@@ -164,7 +194,7 @@ def append_chapter_toggle(client: Client, page_id: str, chapter: str) -> dict[st
     return {"ok": result["ok"], "error": result["error"], "block_id": block_id}
 
 
-def append_quote_bullets(client: Client, toggle_block_id: str, quotes: list[str]) -> dict[str, str | bool]:
+def append_quote_bullets(client: Client, toggle_block_id: str, quotes: list[dict[str, str]]) -> dict[str, str | bool]:
     """Append all quote bullets under one chapter toggle."""
     for batch in batch_append_children(build_quote_bullet_blocks(quotes)):
         result = append_block_children(client, toggle_block_id, batch)
@@ -173,7 +203,7 @@ def append_quote_bullets(client: Client, toggle_block_id: str, quotes: list[str]
     return {"ok": True, "error": ""}
 
 
-def append_page_body(page_id: str, grouped_chapters: dict[str, list[str]]) -> dict[str, str | bool]:
+def append_page_body(page_id: str, grouped_chapters: dict[str, list[dict[str, str]]]) -> dict[str, str | bool]:
     """Append the reflection toggle and all chapter quote blocks to a page."""
     client, _, _, _ = _build_notion_client()
     result = append_template_toggle(client, page_id)

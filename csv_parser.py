@@ -33,23 +33,24 @@ def parse_libby_csv(csv_path: str) -> dict:
         missing_list = ", ".join(sorted(missing_columns))
         raise ValueError(f"CSV is missing required columns: {missing_list}")
 
+    # grouped_chapters shape: chapter -> [{"quote": "...", "note": "..."}]
     grouped_chapters = {}
     has_note_column = "note" in dataframe.columns
     total_notes = 0
 
     for row in dataframe.iloc[::-1].itertuples(index=False):
-        chapter = str(getattr(row, "chapter", "")).strip()
-        quote = str(getattr(row, "quote", "")).strip()
+        chapter = _clean_cell(getattr(row, "chapter", ""))
+        quote = _clean_cell(getattr(row, "quote", ""))
         if not quote:
             continue
 
         if has_note_column:
-            note = _clean_cell(getattr(row, "note", "")) # checks if that row has a value in the note column
+            note = _clean_cell(getattr(row, "note", ""))
             if note:
                 total_notes += 1
-            grouped_chapters.setdefault(chapter, []).append({"quote": quote, "note": note})
         else:
-            grouped_chapters.setdefault(chapter, []).append(quote)
+            note = ""
+        grouped_chapters.setdefault(chapter, []).append({"quote": quote, "note": note}) # all quotes get a "note" value regardless of whether there's a note or not.
 
     return {
         "total_rows": len(dataframe.index),
