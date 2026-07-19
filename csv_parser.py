@@ -6,6 +6,12 @@ import pandas as pd
 REQUIRED_COLUMNS = {"chapter", "quote"}
 
 
+def _clean_cell(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
 def parse_libby_csv(csv_path: str) -> dict:
     """Read a Libby CSV and return grouped chapter data for import.
 
@@ -28,19 +34,28 @@ def parse_libby_csv(csv_path: str) -> dict:
         raise ValueError(f"CSV is missing required columns: {missing_list}")
 
     grouped_chapters = {}
+    has_note_column = "note" in dataframe.columns
+    total_notes = 0
+
     for row in dataframe.iloc[::-1].itertuples(index=False):
         chapter = str(getattr(row, "chapter", "")).strip()
         quote = str(getattr(row, "quote", "")).strip()
         if not quote:
             continue
-        grouped_chapters.setdefault(chapter, []).append(quote)
-        # chapter will be the key to that dictionary, if chapter is not a key, then grouped_chapters[chapter] = []
-        # if there's a value for that chapter key, then we will just append that quote to the list
-        # TLDR: The setdefault() method returns the value of the item with the specified key but it will insert the value for that key if key does not exist.
+
+        if has_note_column:
+            note = _clean_cell(getattr(row, "note", "")) # checks if that row has a value in the note column
+            if note:
+                total_notes += 1
+            grouped_chapters.setdefault(chapter, []).append({"quote": quote, "note": note})
+        else:
+            grouped_chapters.setdefault(chapter, []).append(quote)
 
     return {
         "total_rows": len(dataframe.index),
         "total_chapters": len(grouped_chapters),
         "total_quotes": sum(len(quotes) for quotes in grouped_chapters.values()),
+        "has_note_column": has_note_column,
+        "total_notes": total_notes,
         "grouped_chapters": grouped_chapters,
     }
